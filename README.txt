@@ -83,7 +83,7 @@ fmt.Println(objectFound)
 
 // Find 10 objects from DB
 qi.QueryAll("SELECT id, name from some_table limit 1", &Mapper{}, func(data interface{}) {
-    if objectFound, ok := data.(customer.Customers); ok {
+    if objectFound, ok := data.(XYZ); ok {
         fmt.Println(objectFound.Id, objectFound.Name)
     }
 });
