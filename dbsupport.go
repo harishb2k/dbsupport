@@ -2,7 +2,7 @@ package dbsupport
 
 import "fmt"
 
-func HIMySQL()  {
-    fmt.Println("I am MySQL")
+func FirstFunction()  {
+    fmt.Println("This is just a placeholder")
 }
 
