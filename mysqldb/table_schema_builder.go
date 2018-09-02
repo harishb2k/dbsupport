@@ -2,6 +2,7 @@ package mysqldb
 
 import (
     "database/sql"
+    "errors"
     "fmt"
     "github.com/iancoleman/strcase"
     "os"
@@ -24,6 +25,15 @@ type tableMetadata struct {
 
     ExternalTypeName string
     InternalTypeName string
+}
+
+func (tableMetadata *tableMetadata) MapRow(row interface{}) (interface{}, error) {
+    if row, ok := row.(*sql.Rows); ok {
+        if data, err := tableMetadata.Map(row); err == nil {
+            return data, nil
+        }
+    }
+    return nil, errors.New("some error.")
 }
 
 func (tableMetadata *tableMetadata) Map(row *sql.Rows) (interface{}, error) {
@@ -69,6 +79,57 @@ func (tableMetadata *tableMetadata) Map(row *sql.Rows) (interface{}, error) {
     return nil, nil
 }
 
+func (db mysqlQueryInterface) PrintSchema(database string, table string, packageName string) {
+    var tableMetadata = &tableMetadata{}
+    tableMetadata.ExternalTypeName = strcase.ToCamel(table)
+    tableMetadata.InternalTypeName = "Db" + strcase.ToCamel(table)
+
+    var query = "SELECT column_name, is_nullable, column_type, data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + database + "' AND table_name = '" + table + "'"
+    fmt.Println(query)
+
+    err := db.QueryAll(query, tableMetadata, func(data interface{}) {
+    })
+
+    if err != nil {
+        fmt.Println("Failed to run query", err)
+        return
+    }
+
+    f, _ := os.Create(table + "_auto.go")
+    defer f.Close()
+
+    f.WriteString("package " + packageName + " \n import \"database/sql \n")
+
+    f.WriteString("type " + tableMetadata.InternalTypeName + " struct {\n")
+    f.WriteString("\n")
+    for _, k := range tableMetadata.columns {
+        f.WriteString(k.internalColumnSchema)
+        f.WriteString("\n")
+    }
+    f.WriteString("}\n")
+
+    f.WriteString("type " + tableMetadata.ExternalTypeName + " struct {")
+    for _, k := range tableMetadata.columns {
+        f.WriteString(k.externalColumnSchema)
+        f.WriteString("\n")
+    }
+    f.WriteString("}\n")
+
+    f.WriteString("func " + tableMetadata.InternalTypeName + "To" + tableMetadata.ExternalTypeName + "Mapper(source *" + tableMetadata.InternalTypeName + ", destination *" + tableMetadata.ExternalTypeName + " ) {")
+    for _, k := range tableMetadata.columns {
+        f.WriteString(k.mapperString)
+        f.WriteString("\n")
+    }
+    f.WriteString("}\n")
+
+    f.WriteString("func Convert" + tableMetadata.InternalTypeName + "To" + tableMetadata.ExternalTypeName + "(source *" + tableMetadata.InternalTypeName + ") " + tableMetadata.ExternalTypeName + "{ \n")
+    f.WriteString("destination := " + tableMetadata.ExternalTypeName + "{} \n")
+    f.WriteString("DbCustomersToCustomersMapper(source, &destination) \n")
+    f.WriteString("return destination \n")
+    f.WriteString("}\n")
+}
+
+/*
 func (db *Db) PrintSchema(database string, table string, packageName string) {
     var tableMetadata = &tableMetadata{}
     tableMetadata.ExternalTypeName = strcase.ToCamel(table)
@@ -114,7 +175,7 @@ func (db *Db) PrintSchema(database string, table string, packageName string) {
     f.WriteString("return destination \n")
     f.WriteString("}\n")
 }
-
+*/
 func (metadata *columnMetadata) handleStringColumn() {
     metadata.internalColumnSchema = metadata.ColumnName + " sql.NullString"
     metadata.externalColumnSchema = metadata.ColumnName + " string"

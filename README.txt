@@ -31,7 +31,7 @@ func main()  {
 ====
 
 Step 2) Build   schema_builder
-export GOPATH=$HOME/Go:${PWD}
+export GOPATH=${PWD}:$HOME/Go
 export GOROOT=/usr/local/opt/go/libexec
 export PATH=$PATH:$GOPATH/bin
 export PATH=$PATH:$GOROOT/bin
