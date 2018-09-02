@@ -9,7 +9,7 @@ import (
     "strconv"
 )
 
-func main()  {
+func main() {
     var user, password, host, database, table, packageName string
     var port = 3306
     flag.IntVar(&port, "port", 3306, "MySQL Port")
@@ -24,9 +24,14 @@ func main()  {
     var url = user + ":" + password + "@tcp(" + host + ":" + strconv.Itoa(port) + ")/" + database + ""
     fmt.Printf("Input Arguments -> host=%s, port=%d, user=%s, password=%s, database=%s, table=%s, url=%s\n", host, port, user, password, database, table, url)
 
-    var db = mysqldb.Db{Url: url}
-    db.Initialize()
-    db.PrintSchema(database, table, packageName)
+    var t = mysqldb.New()
+    if err := t.Initialize(mysqldb.Settings{Url: url}); err != nil {
+        fmt.Println("Error in DB init", err)
+        return
+    }
+
+    var queryInterface = t.NewQueryInterface()
+    queryInterface.PrintSchema(database, table, packageName)
 }
 ====
 
